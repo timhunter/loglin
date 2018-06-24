@@ -98,11 +98,11 @@ def loglhdgrad(m, td, weights):
 
 def p(m,y,x,weights):
     #########################################
-    ### Naive implementation
+    ### (1) Naive implementation
     # result = np.exp(score(m,weights,x,y)) / sum([np.exp(score(m,weights,x,yp)) for yp in m[x].keys()])
     # return result
     #########################################
-    ### Using the exp_normalize trick from here: https://timvieira.github.io/blog/post/2014/02/11/exp-normalize-trick/
+    ### (2) Using the exp_normalize trick from here: https://timvieira.github.io/blog/post/2014/02/11/exp-normalize-trick/
     scores = np.array([score(m,weights,x,yp) for yp in m[x].keys()])
     result = exp_normalize(score(m,weights,x,y), scores)
     return result
@@ -115,10 +115,7 @@ def exp_normalize(x,xs):
     result = y / ys.sum()
     return result
 
-def score(m,weights,x,y):
-    feats = m[x][y]
-    score = np.dot(weights, feats)
-    return score
+score = lambda m, weights, x, y: np.dot(weights, m[x][y])
 
 ######################################################################################
 
@@ -126,7 +123,7 @@ def report_model(m, weights):
     print "######################################"
     for lhs in m:
         for rhs in sorted(m[lhs]):
-            print lhs, "-->", " ".join(rhs), "\t", p(m, rhs, lhs, weights), "\t", score(m, weights, lhs, rhs)
+            print lhs, "-->", " ".join(rhs), "\t", "%.4f" % p(m, rhs, lhs, weights), "\t", "%.4f" % score(m, weights, lhs, rhs)
     print "######################################"
 
 def run(filename):
@@ -141,6 +138,7 @@ def run(filename):
     #res = minimize(objective, np.array([0.0 for x in range(dim)]), jac=gradient, method='Nelder-Mead', options={'disp':True})
     res = minimize(objective, np.array([0.0 for x in range(dim)]), jac=gradient, method='BFGS', options={'disp':True})
     print "Found optimal parameter values:", res.x
+    print "Objective function at this point:", objective(res.x)
     report_model(m, res.x)
 
 def main(argv):
