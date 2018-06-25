@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function   # To allow use of python3-style 'print' in python2
+
 import sys
 import re
 from collections import defaultdict
@@ -36,7 +38,7 @@ def parse(line):
     rhs_tokens = tuple(re.findall(token_re, rhs))
     feats_tokens = feats.split()
     try:
-        feats_vals = np.array(map(float, feats_tokens))
+        feats_vals = np.array(list(map(float, feats_tokens)))
     except ValueError:
         raise ParseError("Not a float value")
     return (freq, lhs, rhs_tokens, feats_vals)
@@ -51,7 +53,7 @@ def read_input(filename):
                     data = parse(line)
                     yield data
                 except ParseError:
-                    print >>sys.stderr, ("Parse error on line %d" % linenum)
+                    print("Parse error on line %d" % linenum, file=sys.stderr)
                     raise
             (line, linenum) = (fp.readline(), linenum+1)
 
@@ -120,35 +122,35 @@ score = lambda m, weights, x, y: np.dot(weights, m[x][y])
 ######################################################################################
 
 def report_model(m, weights):
-    print "######################################"
+    print("######################################")
     for lhs in m:
         for rhs in sorted(m[lhs]):
-            print lhs, "-->", " ".join(rhs), "\t", "%.4f" % p(m, rhs, lhs, weights), "\t", "%.4f" % score(m, weights, lhs, rhs)
-    print "######################################"
+            print(lhs, "-->", " ".join(rhs), "\t", "%.4f" % p(m, rhs, lhs, weights), "\t", "%.4f" % score(m, weights, lhs, rhs))
+    print("######################################")
 
 def run(filename):
     (m,td,dim) = build_model(read_input(filename))
-    # print "######################################"
+    # print("######################################")
     # for lhs in m:
     #     for rhs in m[lhs]:
     #         print lhs, rhs, m[lhs][rhs], td[(lhs,rhs)]
-    # print "######################################"
+    # print("######################################")
     objective = lambda weights: 0 - loglikelihood(m, td, weights)
     gradient = lambda weights: 0 - loglhdgrad(m, td, weights)
     #res = minimize(objective, np.array([0.0 for x in range(dim)]), jac=gradient, method='Nelder-Mead', options={'disp':True})
     res = minimize(objective, np.array([0.0 for x in range(dim)]), jac=gradient, method='BFGS', options={'disp':True})
-    print "Found optimal parameter values:", res.x
-    print "Objective function at this point:", objective(res.x)
+    print("Found optimal parameter values:", res.x)
+    print("Objective function at this point:", objective(res.x))
     report_model(m, res.x)
 
 def main(argv):
     try:
         [filename] = argv[1:]
     except ValueError:
-        print >>sys.stderr, "Need a filename"
+        print("Need a filename", file=sys.stderr)
         sys.exit(1)
     run(filename)
-    print >>sys.stderr, "Done, exiting"
+    print("Done, exiting", file=sys.stderr)
 
 if __name__ == "__main__":
     main(sys.argv)
