@@ -1,0 +1,29 @@
+
+# This is the example grammar used in 
+#   Hunter and Dyer (2013), ``Distrbutions on Minimalist Grammar Derivations'', MoL
+
+# The first two features are merge and move.
+# The second group of features indicate checking of categories d, v and t.
+# The third group of features indicate checking of movement features (there's only one, wh).
+# The last feature indicates a lexical item.
+
+ 2      | (+wh c, -wh)_0  | (=t +wh c)_1      (t, -wh)_0      | 1 0     0 0 1   0   0
+95      | (=d t)_0        | (=v =d t)_1       (v)_0           | 1 0     0 1 0   0   0
+ 2      | (=d t, -wh)_0   | (=v =d t)_1       (v, -wh)_0      | 1 0     0 1 0   0   0
+ 2      | (c)_0           | (+wh c, -wh)_0                    | 0 1     0 0 0   1   0
+95      | (c)_0           | (=t c)_1          (t)_0           | 1 0     0 0 1   0   0
+95      | (t)_0           | (=d t)_0          (d)_1           | 1 0     1 0 0   0   0
+ 2      | (t, -wh)_0      | (=d t, -wh)_0     (d)_1           | 1 0     1 0 0   0   0
+95      | (v)_0           | (=d v)_1          (d)_1           | 1 0     1 0 0   0   0
+ 5      | (v)_0           | (=v v)_1          (v)_0           | 1 0     0 1 0   0   0
+ 2      | (v, -wh)_0      | (=d v)_1          (d -wh)_1       | 1 0     1 0 0   0   0
+ 1      | (v, -wh)_0      | (=v v)_1          (v, -wh)_0      | 1 0     0 1 0   0   0
+ 2      | (=t +wh c)_1    |                                   | 0 0     0 0 0   0   1
+95      | (=t c)_1        |                                   | 0 0     0 0 0   0   1
+97      | (=v =d t)_1     | will                              | 0 0     0 0 0   0   1
+ 6      | (=v v)_1        | often                             | 0 0     0 0 0   0   1
+97      | (=d v)_1        | praise                            | 0 0     0 0 0   0   1
+95      | (d)_1           | marie                             | 0 0     0 0 0   0   1
+97      | (d)_1           | pierre                            | 0 0     0 0 0   0   1
+ 2      | (d -wh)_1       | who                               | 0 0     0 0 0   0   1
+
