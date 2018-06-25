@@ -33,15 +33,14 @@ def parse(line):
         freq = int(freq)
     except ValueError:
         raise ParseError("Not an integer value")
-    if not re.match('^'+token_re+'$', lhs):
-        raise ParseError("Left hand side is not a valid token: %s" % lhs)
+    assert re.match('^'+token_re+'$', lhs), ("Left hand side is not a valid token: %s" % lhs)
     rhs_tokens = tuple(re.findall(token_re, rhs))
     feats_tokens = feats.split()
     try:
-        feats_vals = np.array(list(map(float, feats_tokens)))
+        feats_vals = list(map(float, feats_tokens))
     except ValueError:
         raise ParseError("Not a float value")
-    return (freq, lhs, rhs_tokens, feats_vals)
+    return (freq, lhs, rhs_tokens, np.array(feats_vals))
 
 def read_input(filename):
     with open(filename, 'r') as fp:
@@ -69,13 +68,11 @@ def build_model(inp):
         if dim is None:
             dim = len(feats)
         else:
-            if dim != len(feats):
-                raise DimensionMismatchError("Mismatching dimensions")
+            assert dim == len(feats), "Mismatching dimensions"
         td[(lhs,rhs)] += freq
         old_feats = m[lhs].get(rhs, None)
         if old_feats is not None:
-            if not np.array_equal(old_feats, feats):
-                raise FeatureMismatchError("Mismatching features for lhs %s and rhs %s" % (lhs,rhs))
+            assert np.array_equal(old_feats, feats), ("Mismatching features for lhs %s and rhs %s" % (lhs,rhs))
         else:
             m[lhs][rhs] = np.array(feats)
     return (m,td,dim)
