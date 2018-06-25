@@ -47,7 +47,7 @@ def read_input(filename):
         (line, linenum) = (fp.readline(), 1)
         while line:
             line = line.strip()
-            if line != "":
+            if line != "" and not re.match(r'^#', line):
                 try:
                     data = parse(line)
                     yield data
