@@ -19,6 +19,9 @@ class FeatureMismatchError(Exception):
 class DimensionMismatchError(Exception):
     pass
 
+class ProbabilityZeroError(Exception):
+    pass
+
 ######################################################################################
 ### Functions for reading training data and model specification from file
 
@@ -81,9 +84,16 @@ def build_model(inp):
 ### Workings of the model itself
 
 def loglikelihood(m, td, weights):
-    freq = lambda x,y: td[(x,y)]
-    logprob = lambda x,y: np.log(p(m,y,x,weights))
-    ll = sum([freq(lhs,rhs) * logprob(lhs,rhs) for (lhs,rhs) in td])
+    def logprob(x,y):
+        prob = p(m,y,x,weights)
+        if prob == 0.0:
+            raise ProbabilityZeroError
+        else:
+            return np.log(prob)
+    try:
+        ll = sum([ freq * logprob(lhs,rhs) for ((lhs,rhs),freq) in td.items() ])
+    except ProbabilityZeroError:
+        ll = np.finfo('float').min  # the smallest number possible
     return ll
 
 def loglhdgrad(m, td, weights):
@@ -109,8 +119,8 @@ def p(m,y,x,weights):
 
 def exp_normalize(x,xs):
     b = xs.max()
-    ys = np.exp(xs - b, dtype=np.float128)
-    y = np.exp(x - b, dtype=np.float128)
+    ys = np.exp(xs - b)
+    y = np.exp(x - b)
     result = y / ys.sum()
     return result
 
