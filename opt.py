@@ -105,10 +105,9 @@ def loglhdgrad(m, td, weights):
     a = np.zeros(dim)
     b = np.zeros(dim)
     for ((lhs,rhs),freq) in td.items():
-        featvec = m[lhs][rhs]
-        a += freq * np.fromfunction(lambda k: featvec[k], (dim,), dtype=int)
+        a += freq * m[lhs][rhs]
         for (rhsp, featvec) in m[lhs].items():
-            b += freq * np.fromfunction(lambda k: featvec[k] * probtable[lhs][rhsp], (dim,), dtype=int)
+            b += freq * probtable[lhs][rhsp] * featvec
     return a - b
 
 def probs_from_model(m, weights):
