@@ -84,8 +84,9 @@ def build_model(inp):
 ### Workings of the model itself
 
 def loglikelihood(m, td, weights):
+    probtable = probs_from_model(m, weights)
     def logprob(x,y):
-        prob = p(m,y,x,weights)
+        prob = probtable[x][y]
         if prob == 0.0:
             raise ProbabilityZeroError
         else:
@@ -97,13 +98,22 @@ def loglikelihood(m, td, weights):
     return ll
 
 def loglhdgrad(m, td, weights):
+    probtable = probs_from_model(m, weights)
     def f(k,x,y):
         return m[x][y][k]
     def loglhdpartial(k):
         a = sum([freq * f(k,lhs,rhs) for ((lhs,rhs),freq) in td.items()])
-        b = sum([freq * sum([ f(k,lhs,rhsp) * p(m,rhsp,lhs,weights) for rhsp in m[lhs].keys() ]) for ((lhs,rhs),freq) in td.items()])
+        b = sum([freq * sum([ f(k,lhs,rhsp) * probtable[lhs][rhsp] for rhsp in m[lhs].keys() ]) for ((lhs,rhs),freq) in td.items()])
         return a - b
     return np.array([loglhdpartial(i) for i in range(len(weights))])
+
+def probs_from_model(m, weights):
+    probtable = {}
+    for x in m:
+        probtable[x] = {}
+        for (y, featvec) in m[x].items():
+            probtable[x][y] = p(m,y,x,weights)
+    return probtable
 
 def p(m,y,x,weights):
     #########################################
@@ -129,10 +139,11 @@ score = lambda m, weights, x, y: np.dot(weights, m[x][y])
 ######################################################################################
 
 def report_model(m, weights):
+    probtable = probs_from_model(m, weights)
     print("######################################")
     for lhs in m:
         for rhs in sorted(m[lhs]):
-            print(lhs, "-->", " ".join(rhs), "\t", "%.4f" % p(m, rhs, lhs, weights), "\t", "%.4f" % score(m, weights, lhs, rhs))
+            print(lhs, "-->", " ".join(rhs), "\t", "%.4f" % probtable[lhs][rhs], "\t", "%.4f" % score(m, weights, lhs, rhs))
     print("######################################")
 
 def run(filename):
