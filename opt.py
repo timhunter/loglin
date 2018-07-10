@@ -111,21 +111,10 @@ def probs_from_model(m, weights):
     probtable = {}
     for x in m:
         probtable[x] = {}
-        for (y, featvec) in m[x].items():
-            probtable[x][y] = p(m,y,x,weights)
+        scores = np.array([score(m,weights,x,yp) for yp in m[x].keys()])
+        for (y, s) in zip(m[x], scores):
+            probtable[x][y] = exp_normalize(s, scores)
     return probtable
-
-def p(m,y,x,weights):
-    #########################################
-    ### (1) Naive implementation
-    # result = np.exp(score(m,weights,x,y)) / sum([np.exp(score(m,weights,x,yp)) for yp in m[x].keys()])
-    # return result
-    #########################################
-    ### (2) Using the exp_normalize trick from here: https://timvieira.github.io/blog/post/2014/02/11/exp-normalize-trick/
-    scores = np.array([score(m,weights,x,yp) for yp in m[x].keys()])
-    result = exp_normalize(score(m,weights,x,y), scores)
-    return result
-    #########################################
 
 def exp_normalize(x,xs):
     b = xs.max()
