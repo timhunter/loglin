@@ -97,15 +97,19 @@ def loglikelihood(m, td, weights):
         ll = np.finfo('float').min  # the smallest number possible
     return ll
 
+# Calculates the k-indexed vector in Collins' equation (6).
+# We work with vectors all the way through.
 def loglhdgrad(m, td, weights):
     probtable = probs_from_model(m, weights)
-    def f(k,x,y):
-        return m[x][y][k]
-    def loglhdpartial(k):
-        a = sum([freq * f(k,lhs,rhs) for ((lhs,rhs),freq) in td.items()])
-        b = sum([freq * sum([ f(k,lhs,rhsp) * probtable[lhs][rhsp] for rhsp in m[lhs].keys() ]) for ((lhs,rhs),freq) in td.items()])
-        return a - b
-    return np.array([loglhdpartial(i) for i in range(len(weights))])
+    dim = len(weights)
+    a = np.zeros(dim)
+    b = np.zeros(dim)
+    for ((lhs,rhs),freq) in td.items():
+        featvec = m[lhs][rhs]
+        a += freq * np.fromfunction(lambda k: featvec[k], (dim,), dtype=int)
+        for (rhsp, featvec) in m[lhs].items():
+            b += freq * np.fromfunction(lambda k: featvec[k] * probtable[lhs][rhsp], (dim,), dtype=int)
+    return a - b
 
 def probs_from_model(m, weights):
     probtable = {}
