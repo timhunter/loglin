@@ -97,18 +97,39 @@ def loglikelihood(m, td, weights):
         ll = np.finfo('float').min  # the smallest number possible
     return ll
 
-# Calculates the k-indexed vector in Collins' equation (6).
-# We work with vectors all the way through.
+# This function corresponds to equation (6) in Mike Collins' notes here:
+#       http://www.cs.columbia.edu/~mcollins/loglinear.pdf
+# First note that the right-hand side of equation(6):
+#       sum_i [ f_k(x_i, y_i) ]  -  sum_i sum_y [ p(y, x_i, v) f_k(x_i, y) ]
+# can be re-expressed as
+#       sum_i [ f_k(x_i, y_i)  -  sum_y [ p(y, x_i, v) f_k(x_i, y) ] ]
+# This determines a number for each value of k; or, a vector with one entry 
+# for each value of k. That vector is what this function computes. 
+# The subtraction can be thought of as subtracting the expected contribution 
+# of the kth feature from the observed contribution.
 def loglhdgrad(m, td, weights):
-    probtable = probs_from_model(m, weights)
+
     dim = len(weights)
-    a = np.zeros(dim)
-    b = np.zeros(dim)
-    for ((lhs,rhs),freq) in td.items():
-        a += freq * m[lhs][rhs]
+
+    # Precompute p(y,x,v) for each (x,y) pair
+    probtable = probs_from_model(m, weights)
+
+    # Precompute the vector 'sum_y [ p(y, x_i, v) f_k(x_i, y) ]' for each x
+    expectation = {}
+    for lhs in m:
+        foo = np.zeros(dim)
         for (rhsp, featvec) in m[lhs].items():
-            b += freq * probtable[lhs][rhsp] * featvec
-    return a - b
+            foo += probtable[lhs][rhsp] * featvec
+        expectation[lhs] = foo
+
+    # Now compute the overall result by cycling through the training data.
+    # Our 'freq' does not show up in Collins' equations: it's the number of 
+    # times this particular (lhs,rhs) pair shows up in Collins' i-indexed training set.
+    result = np.zeros(dim)
+    for ((lhs,rhs),freq) in td.items():
+        result += freq * (m[lhs][rhs] - expectation[lhs])
+
+    return result
 
 def probs_from_model(m, weights):
     probtable = {}
