@@ -133,19 +133,16 @@ def loglhdgrad(m, td, weights):
 
 def probs_from_model(m, weights):
     probtable = {}
-    for x in m:
+    for (x,ys) in m.items():
         probtable[x] = {}
-        scores = np.array([score(m,weights,x,yp) for yp in m[x].keys()])
-        for (y, s) in zip(m[x], scores):
-            probtable[x][y] = exp_normalize(s, scores)
+        scores = np.array([score(m,weights,x,y) for y in ys])
+        # Using the exp-normalize trick from here: https://timvieira.github.io/blog/post/2014/02/11/exp-normalize-trick/
+        b = scores.max()
+        shifted_exp_scores = np.exp(scores - b)
+        normalized_probs = shifted_exp_scores / shifted_exp_scores.sum()
+        for (y, p) in zip(ys, normalized_probs):
+            probtable[x][y] = p
     return probtable
-
-def exp_normalize(x,xs):
-    b = xs.max()
-    ys = np.exp(xs - b)
-    y = np.exp(x - b)
-    result = y / ys.sum()
-    return result
 
 score = lambda m, weights, x, y: np.dot(weights, m[x][y])
 
