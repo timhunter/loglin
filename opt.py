@@ -147,6 +147,15 @@ def probs_from_model(m, weights):
 score = lambda m, weights, x, y: np.dot(weights, m[x][y])
 
 ######################################################################################
+### Regularization/priors; providing L2 regularization as the only option for now
+
+def penalty(lam, weights):
+    return (lam / 2) * (np.linalg.norm(weights)**2)
+
+def penaltygrad(lam, weights):
+    return lam * weights
+
+######################################################################################
 
 def report_model(m, weights):
     probtable = probs_from_model(m, weights)
@@ -156,19 +165,21 @@ def report_model(m, weights):
             print(lhs, "-->", " ".join(rhs), "\t", "%.4f" % probtable[lhs][rhs], "\t", "%.4f" % score(m, weights, lhs, rhs))
     print("######################################")
 
-def run(filename):
+def run(filename, regularization_lambda):
     (m,td,dim) = build_model(read_input(filename))
     # print("######################################")
     # for lhs in m:
     #     for rhs in m[lhs]:
     #         print lhs, rhs, m[lhs][rhs], td[(lhs,rhs)]
     # print("######################################")
-    objective = lambda weights: 0 - loglikelihood(m, td, weights)
-    gradient = lambda weights: 0 - loglhdgrad(m, td, weights)
+    objective = lambda weights: penalty(regularization_lambda, weights) - loglikelihood(m, td, weights)
+    gradient = lambda weights: penaltygrad(regularization_lambda, weights) - loglhdgrad(m, td, weights)
     #res = minimize(objective, np.array([0.0 for x in range(dim)]), jac=gradient, method='Nelder-Mead', options={'disp':True})
     res = minimize(objective, np.array([0.0 for x in range(dim)]), jac=gradient, method='BFGS', options={'disp':True})
     print("Found optimal parameter values:", res.x)
     print("Objective function at this point:", objective(res.x))
+    print("                  Log likelihood:", loglikelihood(m, td, res.x))
+    print("                         Penalty:", penalty(regularization_lambda, res.x))
     report_model(m, res.x)
 
 def main(argv):
@@ -177,7 +188,8 @@ def main(argv):
     except ValueError:
         print("Need a filename", file=sys.stderr)
         sys.exit(1)
-    run(filename)
+    regularization_lambda = 1.0
+    run(filename, regularization_lambda)
     print("Done, exiting", file=sys.stderr)
 
 if __name__ == "__main__":
