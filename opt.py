@@ -3,6 +3,7 @@
 from __future__ import print_function   # To allow use of python3-style 'print' in python2
 
 import sys
+import argparse
 import re
 from collections import defaultdict
 import numpy as np
@@ -183,13 +184,13 @@ def run(filename, regularization_lambda):
     report_model(m, res.x)
 
 def main(argv):
-    try:
-        [filename] = argv[1:]
-    except ValueError:
-        print("Need a filename", file=sys.stderr)
-        sys.exit(1)
-    regularization_lambda = 1.0
-    run(filename, regularization_lambda)
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument("training_file", metavar="TRAINING_FILE", type=str, help="File containing training data")
+    argparser.add_argument("-l2", dest="l2_lambda", metavar="LAMBDA", type=float, default=0, help="Lambda parameter value for L2 regularization")
+    args = argparser.parse_args()
+    print("Training data file:", args.training_file, file=sys.stderr)
+    print("Regularization parameter lambda:", args.l2_lambda, file=sys.stderr)
+    run(args.training_file, args.l2_lambda)
     print("Done, exiting", file=sys.stderr)
 
 if __name__ == "__main__":
