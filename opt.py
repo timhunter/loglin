@@ -66,7 +66,7 @@ def read_input(filename):
 def extract_model(inp):
     m = defaultdict(lambda: {})
     dim = None
-    for (freq, lhs, rhs, feats) in inp:
+    for (lhs, rhs, feats) in inp:
         if dim is None:
             dim = len(feats)
         else:
@@ -81,7 +81,7 @@ def extract_model(inp):
 # extract_training_data returns a mapping from (LHS,RHS) pairs to frequencies
 def extract_training_data(inp):
     td = defaultdict(lambda: 0)
-    for (freq, lhs, rhs, feats) in inp:
+    for (freq, lhs, rhs) in inp:
         td[(lhs,rhs)] += freq
     return td
 
@@ -167,21 +167,18 @@ def report_model(m, weights):
     print("######################################")
     for lhs in m:
         for rhs in sorted(m[lhs]):
-            print(lhs, "-->", " ".join(rhs), "\t", "%.4f" % probtable[lhs][rhs], "\t", "%.4f" % score(m, weights, lhs, rhs))
+            print("%12.6f\t%.6f\t%s --> %s" % (score(m,weights,lhs,rhs), probtable[lhs][rhs], lhs, " ".join(rhs)))
     print("######################################")
 
 def run(filename, regularization_lambda):
+
+    # This input data contains both rules' feature vectors and their training frequencies together
     input_data = list(read_input(filename))
-    (m,dim) = extract_model(input_data)
-    td = extract_training_data(input_data)
-    # print("######################################")
-    # for lhs in m:
-    #     for rhs in m[lhs]:
-    #         print lhs, rhs, m[lhs][rhs], td[(lhs,rhs)]
-    # print("######################################")
+    (m,dim) = extract_model([(lhs,rhs,feats) for (freq,lhs,rhs,feats) in input_data])
+    td = extract_training_data([(freq,lhs,rhs) for (freq,lhs,rhs,feats) in input_data])
+
     objective = lambda weights: penalty(regularization_lambda, weights) - loglikelihood(m, td, weights)
     gradient = lambda weights: penaltygrad(regularization_lambda, weights) - loglhdgrad(m, td, weights)
-    #res = minimize(objective, np.array([0.0 for x in range(dim)]), jac=gradient, method='Nelder-Mead', options={'disp':True})
     res = minimize(objective, np.array([0.0 for x in range(dim)]), jac=gradient, method='BFGS', options={'disp':True})
     print("Found optimal parameter values:", res.x)
     print("Objective function at this point:", objective(res.x))
