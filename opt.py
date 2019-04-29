@@ -7,7 +7,7 @@ import argparse
 import re
 from collections import defaultdict
 import numpy as np
-from scipy.optimize import minimize
+import scipy.optimize
 
 ######################################################################################
 
@@ -92,6 +92,18 @@ class LogLinModel():
             for (y, p) in zip(ys, normalized_probs):
                 probtable[x][y] = p
         return probtable
+
+    def train(self, td, regularization_lambda):
+        objective = lambda weights: penalty(regularization_lambda, weights) - self.loglikelihood(td, weights)
+        gradient = lambda weights: penaltygrad(regularization_lambda, weights) - self.loglhdgrad(td, weights)
+        res = scipy.optimize.minimize(objective, np.array([0.0 for x in range(self.dim())]), jac=gradient, method='BFGS')
+        print("Optimization results:")
+        print("         Function value:       %f" % res.fun)
+        print("         Iterations:           %d" % res.nit)
+        print("         Function evaluations: %d" % res.nfev)
+        print("         Gradient evaluations: %d" % res.njev)
+        print("         %s" % res.message)
+        return res.x
 
     def loglikelihood(self, td, weights):
         probtable = self.probs_from_model(weights)
@@ -226,14 +238,15 @@ def run(filename, regularization_lambda):
     m = LogLinModelFromFile([(lhs,rhs,feats) for (freq,lhs,rhs,feats) in input_data])
     td = extract_training_data([(freq,lhs,rhs) for (freq,lhs,rhs,feats) in input_data])
 
-    objective = lambda weights: penalty(regularization_lambda, weights) - m.loglikelihood(td, weights)
-    gradient = lambda weights: penaltygrad(regularization_lambda, weights) - m.loglhdgrad(td, weights)
-    res = minimize(objective, np.array([0.0 for x in range(m.dim())]), jac=gradient, method='BFGS', options={'disp':True})
-    print("Found optimal parameter values:", res.x)
-    print("Objective function at this point:", objective(res.x))
-    print("                  Log likelihood:", m.loglikelihood(td, res.x))
-    print("                         Penalty:", penalty(regularization_lambda, res.x))
-    m.report_model(res.x)
+    # Do the optimization
+    weights = m.train(td, regularization_lambda)
+    print("Found optimal parameter values:", weights)
+    llhd = m.loglikelihood(td, weights)
+    penalty_term = penalty(regularization_lambda, weights)
+    print("At this point:  penalty - log-likelihood  =  %f - %f  =  %f" % (penalty_term, llhd, penalty_term - llhd))
+
+    # Print out the rules with their optimized probabilities
+    m.report_model(weights)
 
 def main(argv):
     argparser = argparse.ArgumentParser()
