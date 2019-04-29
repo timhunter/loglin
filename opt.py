@@ -60,11 +60,11 @@ def read_input(filename):
                     raise
             (line, linenum) = (fp.readline(), linenum+1)
 
-# extract_training_data returns a mapping from (LHS,RHS) pairs to frequencies
+# extract_training_data returns a mapping from LHSs to mappings from RHSs to frequencies
 def extract_training_data(inp):
-    td = defaultdict(lambda: 0)
+    td = defaultdict(lambda: defaultdict(lambda: 0))
     for (freq, lhs, rhs) in inp:
-        td[(lhs,rhs)] += freq
+        td[lhs][rhs] += freq
     return td
 
 ######################################################################################
@@ -127,7 +127,9 @@ class LogLinModel():
             else:
                 return np.log(prob)
         try:
-            ll = sum([ freq * logprob(lhs,rhs) for ((lhs,rhs),freq) in td.items() ])
+            ll = 0
+            for (lhs,d) in td.items():
+                ll += sum([ freq * logprob(lhs,rhs) for (rhs,freq) in d.items() ])
         except ProbabilityZeroError:
             ll = np.finfo('float').min  # the smallest number possible
         return ll
@@ -160,8 +162,9 @@ class LogLinModel():
         # Our 'freq' does not show up in Collins' equations: it's the number of 
         # times this particular (lhs,rhs) pair shows up in Collins' i-indexed training set.
         result = np.zeros(self._dim)
-        for ((lhs,rhs),freq) in td.items():
-            result += freq * (self.featvec(lhs,rhs) - expectation[lhs])
+        for (lhs,d) in td.items():
+            for (rhs,freq) in d.items():
+                result += freq * (self.featvec(lhs,rhs) - expectation[lhs])
 
         return result
 
