@@ -92,13 +92,23 @@ class LogLinModel():
     def dim(self):
         return self._dim
 
+    def lhss(self):
+        return self._rules.keys()
+
+    def rhss(self, lhs):
+        return self._rules[lhs].keys()
+
+    def featvec(self, lhs, rhs):
+        return self._rules[lhs][rhs]
+
     def score(self, weights, x, y):
-        return np.dot(weights, self._rules[x][y])
+        return np.dot(weights, self.featvec(x,y))
 
     def probs_from_model(self, weights):
         probtable = {}
-        for (x,ys) in self._rules.items():
+        for x in self.lhss():
             probtable[x] = {}
+            ys = self.rhss(x)
             scores = np.array([self.score(weights,x,y) for y in ys])
             # Using the exp-normalize trick from here: https://timvieira.github.io/blog/post/2014/02/11/exp-normalize-trick/
             b = scores.max()
@@ -139,9 +149,10 @@ class LogLinModel():
 
         # Precompute the vector 'sum_y [ p(y, x_i, v) f_k(x_i, y) ]' for each x
         expectation = {}
-        for lhs in self._rules:
+        for lhs in self.lhss():
             foo = np.zeros(self._dim)
-            for (rhsp, featvec) in self._rules[lhs].items():
+            for rhsp in self.rhss(lhs):
+                featvec = self.featvec(lhs,rhsp)
                 foo += probtable[lhs][rhsp] * featvec
             expectation[lhs] = foo
 
@@ -150,15 +161,15 @@ class LogLinModel():
         # times this particular (lhs,rhs) pair shows up in Collins' i-indexed training set.
         result = np.zeros(self._dim)
         for ((lhs,rhs),freq) in td.items():
-            result += freq * (self._rules[lhs][rhs] - expectation[lhs])
+            result += freq * (self.featvec(lhs,rhs) - expectation[lhs])
 
         return result
 
     def report_model(self, weights):
         probtable = self.probs_from_model(weights)
         print("######################################")
-        for lhs in self._rules:
-            for rhs in sorted(self._rules[lhs]):
+        for lhs in self.lhss():
+            for rhs in sorted(self.rhss(lhs)):
                 print("%12.6f\t%.6f\t%s --> %s" % (self.score(weights,lhs,rhs), probtable[lhs][rhs], lhs, " ".join(rhs)))
         print("######################################")
 
