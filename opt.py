@@ -127,7 +127,7 @@ class LogLinModel():
         # Precompute the vector 'sum_y [ p(y, x_i, v) f_k(x_i, y) ]' for each x
         expectation = {}
         for lhs in self.lhss():
-            foo = np.zeros(self._dim)
+            foo = np.zeros(self.dim())
             for rhsp in self.rhss(lhs):
                 featvec = self.featvec(lhs,rhsp)
                 foo += probtable[lhs][rhsp] * featvec
@@ -136,7 +136,7 @@ class LogLinModel():
         # Now compute the overall result by cycling through the training data.
         # Our 'freq' does not show up in Collins' equations: it's the number of 
         # times this particular (lhs,rhs) pair shows up in Collins' i-indexed training set.
-        result = np.zeros(self._dim)
+        result = np.zeros(self.dim())
         for (lhs,d) in td.items():
             for (rhs,freq) in d.items():
                 result += freq * (self.featvec(lhs,rhs) - expectation[lhs])
