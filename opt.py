@@ -183,6 +183,30 @@ class LogLinModelFromFile(LogLinModel):
     def featvec(self, lhs, rhs):
         return self._rules[lhs][rhs]
 
+# Subclass for models with only ``basic'' features, in the sense of Berg-Kirkpatrick et al 2010 p.583, 
+# i.e. indicator features that emulate classical generative models
+class LogLinModelBasic(LogLinModel):
+
+    # Sets up these instance variables:
+    #   self._rulelist: a list of (LHS,RHS) pairs
+    def __init__(self, rulelist):
+        self._rulelist = list(set(rulelist))
+
+    def dim(self):
+        return len(self._rulelist)
+
+    def lhss(self):
+        return list(set([lhs for (lhs,rhs) in self._rulelist]))
+
+    def rhss(self, x):
+        return list(set([rhs for (lhs,rhs) in self._rulelist if x == lhs]))
+
+    def featvec(self, lhs, rhs):
+        index = self._rulelist.index((lhs,rhs))
+        v = np.zeros(self.dim())
+        v.put(index,1)
+        return v
+
 ######################################################################################
 ### Regularization/priors; providing L2 regularization as the only option for now
 
@@ -198,6 +222,7 @@ def run(filename, regularization_lambda):
 
     # This input data contains both rules' feature vectors and their training frequencies together
     input_data = list(read_input(filename))
+    #m = LogLinModelBasic([(lhs,rhs) for (freq,lhs,rhs,feats) in input_data])
     m = LogLinModelFromFile([(lhs,rhs,feats) for (freq,lhs,rhs,feats) in input_data])
     td = extract_training_data([(freq,lhs,rhs) for (freq,lhs,rhs,feats) in input_data])
 
