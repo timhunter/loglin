@@ -70,36 +70,11 @@ def extract_training_data(inp):
 ######################################################################################
 ### Class for log-linear models
 
+# This is intended as an abstract base class
 class LogLinModel():
 
-    # Sets up these instance variables:
-    #   self._rules: a mapping from LHSs to mappings from RHSs to feature vectors
-    #   self._dim: the number of parameters
-    def __init__(self, inp):
-        self._rules = defaultdict(lambda: {})
-        self._dim = None
-        for (lhs, rhs, feats) in inp:
-            if self._dim is None:
-                self._dim = len(feats)
-            else:
-                assert self._dim == len(feats), "Mismatching dimensions"
-            old_feats = self._rules[lhs].get(rhs, None)
-            if old_feats is not None:
-                assert np.array_equal(old_feats, feats), ("Mismatching features for lhs %s and rhs %s" % (lhs,rhs))
-            else:
-                self._rules[lhs][rhs] = np.array(feats)
-
-    def dim(self):
-        return self._dim
-
-    def lhss(self):
-        return self._rules.keys()
-
-    def rhss(self, lhs):
-        return self._rules[lhs].keys()
-
-    def featvec(self, lhs, rhs):
-        return self._rules[lhs][rhs]
+    def __init__(self):
+        print("WARNING: Constructor for LogLinModel -- this is intended as abstract base class, are you sure this is what you want?", file=sys.stderr)
 
     def score(self, weights, x, y):
         return np.dot(weights, self.featvec(x,y))
@@ -176,6 +151,38 @@ class LogLinModel():
                 print("%12.6f\t%.6f\t%s --> %s" % (self.score(weights,lhs,rhs), probtable[lhs][rhs], lhs, " ".join(rhs)))
         print("######################################")
 
+# Subclass for models specified via a file with rules' feature-vectors and their training frequencies together
+class LogLinModelFromFile(LogLinModel):
+
+    # Sets up these instance variables:
+    #   self._rules: a mapping from LHSs to mappings from RHSs to feature vectors
+    #   self._dim: the number of parameters
+    def __init__(self, inp):
+        self._rules = defaultdict(lambda: {})
+        self._dim = None
+        for (lhs, rhs, feats) in inp:
+            if self._dim is None:
+                self._dim = len(feats)
+            else:
+                assert self._dim == len(feats), "Mismatching dimensions"
+            old_feats = self._rules[lhs].get(rhs, None)
+            if old_feats is not None:
+                assert np.array_equal(old_feats, feats), ("Mismatching features for lhs %s and rhs %s" % (lhs,rhs))
+            else:
+                self._rules[lhs][rhs] = np.array(feats)
+
+    def dim(self):
+        return self._dim
+
+    def lhss(self):
+        return self._rules.keys()
+
+    def rhss(self, lhs):
+        return self._rules[lhs].keys()
+
+    def featvec(self, lhs, rhs):
+        return self._rules[lhs][rhs]
+
 ######################################################################################
 ### Regularization/priors; providing L2 regularization as the only option for now
 
@@ -191,7 +198,7 @@ def run(filename, regularization_lambda):
 
     # This input data contains both rules' feature vectors and their training frequencies together
     input_data = list(read_input(filename))
-    m = LogLinModel([(lhs,rhs,feats) for (freq,lhs,rhs,feats) in input_data])
+    m = LogLinModelFromFile([(lhs,rhs,feats) for (freq,lhs,rhs,feats) in input_data])
     td = extract_training_data([(freq,lhs,rhs) for (freq,lhs,rhs,feats) in input_data])
 
     objective = lambda weights: penalty(regularization_lambda, weights) - m.loglikelihood(td, weights)
