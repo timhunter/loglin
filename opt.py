@@ -60,26 +60,30 @@ def read_input(filename):
                     raise
             (line, linenum) = (fp.readline(), linenum+1)
 
-# build_model returns a triple (m,td,dim), where
+# extract_model returns a pair (m,dim), where
 #   - m is a mapping from LHSs to mappings from RHSs to feature vectors
-#   - td is a mapping from (LHS,RHS) pairs to frequencies
 #   - dim is the number of parameters
-def build_model(inp):
+def extract_model(inp):
     m = defaultdict(lambda: {})
-    td = defaultdict(lambda: 0)
     dim = None
     for (freq, lhs, rhs, feats) in inp:
         if dim is None:
             dim = len(feats)
         else:
             assert dim == len(feats), "Mismatching dimensions"
-        td[(lhs,rhs)] += freq
         old_feats = m[lhs].get(rhs, None)
         if old_feats is not None:
             assert np.array_equal(old_feats, feats), ("Mismatching features for lhs %s and rhs %s" % (lhs,rhs))
         else:
             m[lhs][rhs] = np.array(feats)
-    return (m,td,dim)
+    return (m,dim)
+
+# extract_training_data returns a mapping from (LHS,RHS) pairs to frequencies
+def extract_training_data(inp):
+    td = defaultdict(lambda: 0)
+    for (freq, lhs, rhs, feats) in inp:
+        td[(lhs,rhs)] += freq
+    return td
 
 ######################################################################################
 ### Workings of the model itself
@@ -167,7 +171,9 @@ def report_model(m, weights):
     print("######################################")
 
 def run(filename, regularization_lambda):
-    (m,td,dim) = build_model(read_input(filename))
+    input_data = list(read_input(filename))
+    (m,dim) = extract_model(input_data)
+    td = extract_training_data(input_data)
     # print("######################################")
     # for lhs in m:
     #     for rhs in m[lhs]:
