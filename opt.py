@@ -93,10 +93,12 @@ class LogLinModel():
                 probtable[x][y] = p
         return probtable
 
-    def train(self, td, regularization_lambda):
+    def train(self, td, regularization_lambda, initial=None):
+        if initial is None:
+            initial = np.zeros(self.dim())
         objective = lambda weights: penalty(regularization_lambda, weights) - self.loglikelihood(td, weights)
         gradient = lambda weights: penaltygrad(regularization_lambda, weights) - self.loglhdgrad(td, weights)
-        res = scipy.optimize.minimize(objective, np.array([0.0 for x in range(self.dim())]), jac=gradient, method='BFGS')
+        res = scipy.optimize.minimize(objective, initial, jac=gradient, method='BFGS')
         print("Optimization results:")
         print("         Function value:       %f" % res.fun)
         print("         Iterations:           %d" % res.nit)
@@ -202,7 +204,7 @@ class LogLinModelBasic(LogLinModel):
     # Sets up these instance variables:
     #   self._rulelist: a list of (LHS,RHS) pairs
     def __init__(self, rulelist):
-        self._rulelist = list(set(rulelist))
+        self._rulelist = list(rulelist)
 
     def dim(self):
         return len(self._rulelist)
