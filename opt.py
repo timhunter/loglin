@@ -205,6 +205,7 @@ class LogLinModelBasic(LogLinModel):
     #   self._rulelist: a list of (LHS,RHS) pairs
     def __init__(self, rulelist):
         self._rulelist = list(rulelist)
+        self._featvecdict = {}
 
     def dim(self):
         return len(self._rulelist)
@@ -216,10 +217,14 @@ class LogLinModelBasic(LogLinModel):
         return list(set([rhs for (lhs,rhs) in self._rulelist if x == lhs]))
 
     def featvec(self, lhs, rhs):
-        index = self._rulelist.index((lhs,rhs))
-        v = np.zeros(self.dim())
-        v.put(index,1)
-        return v
+        try:
+            return self._featvecdict[(lhs,rhs)]
+        except KeyError:
+            index = self._rulelist.index((lhs,rhs))
+            v = np.zeros(self.dim())
+            v.put(index,1)
+            self._featvecdict[(lhs,rhs)] = v
+            return v
 
 ######################################################################################
 ### Regularization/priors; providing L2 regularization as the only option for now
