@@ -123,7 +123,7 @@ class LogLinModel():
                 ll += sum([ freq * logprob(lhs,rhs) for (rhs,freq) in d.items() ])
         except ProbabilityZeroError:
             ll = np.finfo('float').min  # the smallest number possible
-        return ll
+        return np.longdouble(ll)
 
     # This function corresponds to equation (6) in Mike Collins' notes here:
     #       http://www.cs.columbia.edu/~mcollins/loglinear.pdf
@@ -157,7 +157,7 @@ class LogLinModel():
             for (rhs,freq) in d.items():
                 result += freq * (self.featvec(lhs,rhs) - expectation[lhs])
 
-        return result
+        return np.longdouble(result)
 
     def report_model(self, weights):
         probtable = self.probs_from_model(weights)
