@@ -77,7 +77,11 @@ class LogLinModel():
         print("WARNING: Constructor for LogLinModel -- this is intended as abstract base class, are you sure this is what you want?", file=sys.stderr)
 
     def score(self, weights, x, y):
-        return np.dot(weights, self.featvec(x,y))
+        return self.featvec_dot(x, y, weights)
+
+    # Provided as a hook for specialized implementations to override
+    def featvec_dot(self, x, y, othervec):
+        return np.dot(othervec, self.featvec(x,y))
 
     def probs_from_model(self, weights):
         probtable = {}
@@ -157,6 +161,7 @@ class LogLinModel():
             for (rhs,freq) in d.items():
                 result += freq * (self.featvec(lhs,rhs) - expectation[lhs])
 
+        assert isinstance(result, np.ndarray) and result.ndim == 1
         return np.longdouble(result)
 
     def report_model(self, weights):
@@ -208,6 +213,7 @@ class LogLinModelBasic(LogLinModel):
     def __init__(self, rulelist):
         self._rulelist = list(rulelist)
         self._featvecdict = {}
+        self._indexdict = {}
 
     def dim(self):
         return len(self._rulelist)
@@ -218,15 +224,27 @@ class LogLinModelBasic(LogLinModel):
     def rhss(self, x):
         return list(set([rhs for (lhs,rhs) in self._rulelist if x == lhs]))
 
+    def find_index(self, lhs, rhs):
+        try:
+            return self._indexdict[(lhs,rhs)]
+        except KeyError:
+            index = self._rulelist.index((lhs,rhs))
+            self._indexdict[(lhs,rhs)] = index
+            return index
+
     def featvec(self, lhs, rhs):
         try:
             return self._featvecdict[(lhs,rhs)]
         except KeyError:
-            index = self._rulelist.index((lhs,rhs))
+            index = self.find_index(lhs,rhs)
             v = np.zeros(self.dim())
             v.put(index,1)
             self._featvecdict[(lhs,rhs)] = v
             return v
+
+    def featvec_dot(self, x, y, othervec):
+        index = self.find_index(x,y)
+        return othervec[index]
 
 ######################################################################################
 ### Regularization/priors; providing L2 regularization as the only option for now
