@@ -246,6 +246,32 @@ class LogLinModelBasic(LogLinModel):
         index = self.find_index(x,y)
         return othervec[index]
 
+class LogLinModelWithFunctions(LogLinModel):
+
+    def __init__(self, rulelist, featfuncs):
+        self._rulelist = list(rulelist)
+        self._featfuncs = featfuncs
+        self._featvecdict = {}
+
+    def dim(self):
+        return len(self._featfuncs)
+
+    def lhss(self):
+        return list(set([lhs for (lhs,rhs) in self._rulelist]))
+
+    def rhss(self, x):
+        return list(set([rhs for (lhs,rhs) in self._rulelist if x == lhs]))
+
+    def featvec(self, lhs, rhs):
+        try:
+            return self._featvecdict[(lhs,rhs)]
+        except KeyError:
+            v = [f(lhs,rhs) for f in self._featfuncs]
+            print("%-16s %-32s       feature vector %s" % (lhs,rhs,v))
+            v = np.array(v)
+            self._featvecdict[(lhs,rhs)] = v
+            return v
+
 ######################################################################################
 ### Regularization/priors; providing L2 regularization as the only option for now
 
@@ -261,8 +287,19 @@ def run(filename, regularization_lambda):
 
     # This input data contains both rules' feature vectors and their training frequencies together
     input_data = list(read_input(filename))
+
+    ######################################################
+
+    ### Standard basic model for the ``naive parametrization'', with an indicator for each (lhs,rhs) pair
     #m = LogLinModelBasic([(lhs,rhs) for (freq,lhs,rhs,feats) in input_data])
+
+    ### Using the generic class with feature functions to implement the ``naive parametrization''
+    #m = LogLinModelWithFunctions([(lhs,rhs) for (freq,lhs,rhs,feats) in input_data], map((lambda (freq,lhs,rhs,feats): lambda x,y: 1 if y == rhs else 0), input_data))
+
     m = LogLinModelFromFile([(lhs,rhs,feats) for (freq,lhs,rhs,feats) in input_data])
+
+    ######################################################
+
     td = extract_training_data([(freq,lhs,rhs) for (freq,lhs,rhs,feats) in input_data])
 
     # Do the optimization
