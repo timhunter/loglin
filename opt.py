@@ -172,25 +172,15 @@ class LogLinModel():
                 print("%12.6f\t%.6f\t%s --> %s" % (self.score(weights,lhs,rhs), probtable[lhs][rhs], lhs, " ".join(rhs)))
         print("######################################")
 
-# Subclass for models specified via a file with rules' feature-vectors and their training frequencies together
-class LogLinModelFromFile(LogLinModel):
+# Subclass for models where rules' feature vectors are specified by a simple lookup table
+class LogLinModelLookup(LogLinModel):
 
     # Sets up these instance variables:
     #   self._rules: a mapping from LHSs to mappings from RHSs to feature vectors
     #   self._dim: the number of parameters
-    def __init__(self, inp):
-        self._rules = defaultdict(lambda: {})
-        self._dim = None
-        for (lhs, rhs, feats) in inp:
-            if self._dim is None:
-                self._dim = len(feats)
-            else:
-                assert self._dim == len(feats), "Mismatching dimensions"
-            old_feats = self._rules[lhs].get(rhs, None)
-            if old_feats is not None:
-                assert np.array_equal(old_feats, feats), ("Mismatching features for lhs %s and rhs %s" % (lhs,rhs))
-            else:
-                self._rules[lhs][rhs] = np.array(feats)
+    def __init__(self, rules, dim):
+        self._rules = rules
+        self._dim = dim
 
     def dim(self):
         return self._dim
@@ -267,7 +257,6 @@ class LogLinModelWithFunctions(LogLinModel):
             return self._featvecdict[(lhs,rhs)]
         except KeyError:
             v = [f(lhs,rhs) for f in self._featfuncs]
-            print("%-16s %-32s       feature vector %s" % (lhs,rhs,v))
             v = np.array(v)
             self._featvecdict[(lhs,rhs)] = v
             return v
@@ -288,15 +277,32 @@ def run(filename, regularization_lambda):
     # This input data contains both rules' feature vectors and their training frequencies together
     input_data = list(read_input(filename))
 
+    # Set up ruletbl as a mapping from LHSs to mappings from RHSs to feature vectors, 
+    # and numfeats as the number of parameters
+    ruletbl = defaultdict(lambda: {})
+    numfeats = None
+    for (freq,lhs,rhs,feats) in input_data:
+        if numfeats is None:
+            numfeats = len(feats)
+        else:
+            assert numfeats == len(feats), "Mismatching dimensions"
+        old_feats = ruletbl[lhs].get(rhs, None)
+        if old_feats is not None:
+            assert np.array_equal(old_feats, feats), ("Mismatching features for lhs %s and rhs %s" % (lhs,rhs))
+        else:
+            ruletbl[lhs][rhs] = np.array(feats)
+
     ######################################################
 
+    xypairs = [(lhs,rhs) for lhs in ruletbl for rhs in ruletbl[lhs].keys()]
+
     ### Standard basic model for the ``naive parametrization'', with an indicator for each (lhs,rhs) pair
-    #m = LogLinModelBasic([(lhs,rhs) for (freq,lhs,rhs,feats) in input_data])
+    #m = LogLinModelBasic(xypairs)
 
     ### Using the generic class with feature functions to implement the ``naive parametrization''
-    #m = LogLinModelWithFunctions([(lhs,rhs) for (freq,lhs,rhs,feats) in input_data], map((lambda (freq,lhs,rhs,feats): lambda x,y: 1 if y == rhs else 0), input_data))
+    #m = LogLinModelWithFunctions(xypairs, list(map((lambda pair: lambda x,y: 1 if (x,y) == pair else 0), xypairs)))
 
-    m = LogLinModelFromFile([(lhs,rhs,feats) for (freq,lhs,rhs,feats) in input_data])
+    m = LogLinModelLookup(ruletbl, numfeats)
 
     ######################################################
 
