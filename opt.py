@@ -172,28 +172,6 @@ class LogLinModel():
                 print("%12.6f\t%.6f\t%s --> %s" % (self.score(weights,lhs,rhs), probtable[lhs][rhs], lhs, " ".join(rhs)))
         print("######################################")
 
-# Subclass for models where rules' feature vectors are specified by a simple lookup table
-class LogLinModelLookup(LogLinModel):
-
-    # Sets up these instance variables:
-    #   self._rules: a mapping from LHSs to mappings from RHSs to feature vectors
-    #   self._dim: the number of parameters
-    def __init__(self, rules, dim):
-        self._rules = rules
-        self._dim = dim
-
-    def dim(self):
-        return self._dim
-
-    def lhss(self):
-        return self._rules.keys()
-
-    def rhss(self, lhs):
-        return self._rules[lhs].keys()
-
-    def featvec(self, lhs, rhs):
-        return self._rules[lhs][rhs]
-
 # Subclass for models with only ``basic'' features, in the sense of Berg-Kirkpatrick et al 2010 p.583, 
 # i.e. indicator features that emulate classical generative models
 class LogLinModelBasic(LogLinModel):
@@ -302,7 +280,9 @@ def run(filename, regularization_lambda):
     ### Using the generic class with feature functions to implement the ``naive parametrization''
     #m = LogLinModelWithFunctions(xypairs, list(map((lambda pair: lambda x,y: 1 if (x,y) == pair else 0), xypairs)))
 
-    m = LogLinModelLookup(ruletbl, numfeats)
+    ## Using the generic class with feature functions to implement the model based on feature vectors from the input file
+    featfuncs = list(map((lambda i: lambda x,y: ruletbl[x][y][i]), range(numfeats)))
+    m = LogLinModelWithFunctions(xypairs, featfuncs)
 
     ######################################################
 
