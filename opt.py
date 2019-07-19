@@ -245,11 +245,22 @@ class LogLinModelMixed(LogLinModel):
     def __init__(self, rulelist, featfuncs, indicator_groups):
         self._rulelist = list(rulelist)
         self._featfuncs = featfuncs
-        self._indicator_groups = indicator_groups
         self._featvecdict = {}
 
+        # For each indicator group, we store a triple consisting of:
+        #   offset: the number of features, both function features and indicators, that precede this one
+        #   f: the function for extracting the class from and (x,y) pair
+        #   d: a dictionary mapping each class to its index
+        self._indicator_groups = []
+        offset = len(featfuncs)
+        for (f,ks) in indicator_groups:
+            d = {k : i for (i,k) in enumerate(ks)}
+            self._indicator_groups.append((offset,f,d))
+            offset += len(ks)
+        self._dim = offset
+
     def dim(self):
-        return len(self._featfuncs) + sum([len(ks) for (f,ks) in self._indicator_groups])
+        return self._dim
 
     def lhss(self):
         return list(set([lhs for (lhs,rhs) in self._rulelist]))
@@ -261,14 +272,22 @@ class LogLinModelMixed(LogLinModel):
         try:
             return self._featvecdict[(lhs,rhs)]
         except KeyError:
-            v = [f(lhs,rhs) for f in self._featfuncs]
-            def indicator_subvec(f,ks):
-                val = f(lhs,rhs)
-                return [1 if val == k else 0 for k in ks]
-            subvecs = [indicator_subvec(f,ks) for (f,ks) in self._indicator_groups]
-            v = np.array(v + [x for subvec in subvecs for x in subvec])
+            v = np.zeros(self.dim())
+            for (i,f) in enumerate(self._featfuncs):
+                v.put(i, f(lhs,rhs))
+            for (offset,f,d) in self._indicator_groups:
+                index = offset + d[f(lhs,rhs)]
+                v.put(index, 1)
             self._featvecdict[(lhs,rhs)] = v
             return v
+
+    def featvec_dot(self, x, y, othervec):
+        total = 0
+        for (i,f) in enumerate(self._featfuncs):
+            total += f(x,y) * othervec[i]
+        for (offset,f,d) in self._indicator_groups:
+            total += othervec[offset + d[f(x,y)]]
+        return total
 
 ######################################################################################
 ### Regularization/priors; providing L2 regularization as the only option for now
