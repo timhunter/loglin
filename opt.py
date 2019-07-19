@@ -239,6 +239,37 @@ class LogLinModelWithFunctions(LogLinModel):
             self._featvecdict[(lhs,rhs)] = v
             return v
 
+class LogLinModelMixed(LogLinModel):
+
+    # An indicator group is a pair (f,ks) which represents a collection of features [(lambda (x,y): 1 if f(x,y) == k else 0) for k in ks]
+    def __init__(self, rulelist, featfuncs, indicator_groups):
+        self._rulelist = list(rulelist)
+        self._featfuncs = featfuncs
+        self._indicator_groups = indicator_groups
+        self._featvecdict = {}
+
+    def dim(self):
+        return len(self._featfuncs) + sum([len(ks) for (f,ks) in self._indicator_groups])
+
+    def lhss(self):
+        return list(set([lhs for (lhs,rhs) in self._rulelist]))
+
+    def rhss(self, x):
+        return list(set([rhs for (lhs,rhs) in self._rulelist if x == lhs]))
+
+    def featvec(self, lhs, rhs):
+        try:
+            return self._featvecdict[(lhs,rhs)]
+        except KeyError:
+            v = [f(lhs,rhs) for f in self._featfuncs]
+            def indicator_subvec(f,ks):
+                val = f(lhs,rhs)
+                return [1 if val == k else 0 for k in ks]
+            subvecs = [indicator_subvec(f,ks) for (f,ks) in self._indicator_groups]
+            v = np.array(v + [x for subvec in subvecs for x in subvec])
+            self._featvecdict[(lhs,rhs)] = v
+            return v
+
 ######################################################################################
 ### Regularization/priors; providing L2 regularization as the only option for now
 
