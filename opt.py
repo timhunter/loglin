@@ -217,18 +217,20 @@ class LogLinModelBasic(LogLinModel):
 class LogLinModelWithFunctions(LogLinModel):
 
     def __init__(self, rulelist, featfuncs):
-        self._rulelist = list(rulelist)
         self._featfuncs = featfuncs
         self._featvecdict = {}
+        self._ruledict = defaultdict(lambda: [])
+        for (x,y) in rulelist:
+            self._ruledict[x].append(y)
 
     def dim(self):
         return len(self._featfuncs)
 
     def lhss(self):
-        return list(set([lhs for (lhs,rhs) in self._rulelist]))
+        return self._ruledict.keys()
 
     def rhss(self, x):
-        return list(set([rhs for (lhs,rhs) in self._rulelist if x == lhs]))
+        return self._ruledict[x]
 
     def featvec(self, lhs, rhs):
         try:
@@ -243,9 +245,12 @@ class LogLinModelMixed(LogLinModel):
 
     # An indicator group is a pair (f,ks) which represents a collection of features [(lambda (x,y): 1 if f(x,y) == k else 0) for k in ks]
     def __init__(self, rulelist, featfuncs, indicator_groups):
-        self._rulelist = list(rulelist)
         self._featfuncs = featfuncs
         self._featvecdict = {}
+
+        self._ruledict = defaultdict(lambda: [])
+        for (x,y) in rulelist:
+            self._ruledict[x].append(y)
 
         # For each indicator group, we store a triple consisting of:
         #   offset: the number of features, both function features and indicators, that precede this one
@@ -263,10 +268,10 @@ class LogLinModelMixed(LogLinModel):
         return self._dim
 
     def lhss(self):
-        return list(set([lhs for (lhs,rhs) in self._rulelist]))
+        return self._ruledict.keys()
 
     def rhss(self, x):
-        return list(set([rhs for (lhs,rhs) in self._rulelist if x == lhs]))
+        return self._ruledict[x]
 
     def featvec(self, lhs, rhs):
         try:
