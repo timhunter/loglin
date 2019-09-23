@@ -68,6 +68,22 @@ def extract_training_data(inp):
     return td
 
 ######################################################################################
+### For callbacks from scipy's optimization function
+
+class ProgressStats:
+    def __init__(self):
+        self.num_iterations = 0
+        self.last_weights = None
+
+def report_optimization_progress(stats, outputfn, loglhd, weights, freq):
+    if freq is not None and stats.num_iterations % freq == 0:
+        distance = None if stats.last_weights is None else np.linalg.norm(weights - stats.last_weights)
+        outputfn("    iterations: %d    \tloglhd: %s    \tweights change distance: %s" % (stats.num_iterations, loglhd, distance))
+        stats.last_weights = weights
+    stats.num_iterations += 1
+    return False  # returning True terminates
+
+######################################################################################
 ### Class for log-linear models
 
 # This is intended as an abstract base class
@@ -97,14 +113,16 @@ class LogLinModel():
                 probtable[x][y] = p
         return probtable
 
-    def train(self, td, regularization_lambda, initial=None, method=None, outputfn=print):
+    def train(self, td, regularization_lambda, initial=None, method=None, outputfn=print, progress_report_freq=None):
         if initial is None:
             initial = np.zeros(self.dim())
         if method is None:
             method = 'BFGS'
         objective = lambda weights: penalty(regularization_lambda, weights) - self.loglikelihood(td, weights)
         gradient = lambda weights: penaltygrad(regularization_lambda, weights) - self.loglhdgrad(td, weights)
-        res = scipy.optimize.minimize(objective, initial, jac=gradient, method=method)
+        stats = ProgressStats()
+        callback = lambda w: report_optimization_progress(stats, outputfn, self.loglikelihood(td,w), w, progress_report_freq)
+        res = scipy.optimize.minimize(objective, initial, jac=gradient, method=method, callback=callback)
         outputfn("Optimization results:")
         outputfn("         Function value:       %f" % res.fun)
         outputfn("         Iterations:           %d" % res.nit)
