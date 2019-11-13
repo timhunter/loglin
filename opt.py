@@ -291,18 +291,21 @@ class LogLinModelMixed(LogLinModel):
     def rhss(self, x):
         return self._ruledict[x]
 
+    # We don't actually memoize a feature vector here, because it's probably huge and sparse. 
+    # Instead, we just memoize a sequence of (index,value) pairs representing the non-zero entries in the vector f(lhs,rhs).
     def featvec(self, lhs, rhs):
         try:
-            return self._featvecdict[(lhs,rhs)]
+            nonzero_entries = self._featvecdict[(lhs,rhs)]
         except KeyError:
-            v = np.zeros(self.dim())
-            for (i,f) in enumerate(self._featfuncs):
-                v.put(i, f(lhs,rhs))
+            nonzero_entries = [(i, f(lhs,rhs)) for (i,f) in enumerate(self._featfuncs) if f(lhs,rhs) != 0]
             for (offset,f,d) in self._indicator_groups:
                 index = offset + d[f(lhs,rhs)]
-                v.put(index, 1)
-            self._featvecdict[(lhs,rhs)] = v
-            return v
+                nonzero_entries.append((index,1))
+            self._featvecdict[(lhs,rhs)] = tuple(nonzero_entries)
+        result = np.zeros(self.dim())
+        for (index,value) in nonzero_entries:
+            result.put(index,value)
+        return result
 
     def featvec_dot(self, x, y, othervec):
         total = 0
