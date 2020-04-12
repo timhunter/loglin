@@ -162,22 +162,18 @@ class LogLinModel():
         # Precompute p(y,x,v) for each (x,y) pair
         probtable = self.probs_from_model(weights)
 
-        # Precompute the vector 'sum_y [ p(y, x_i, v) f_k(x_i, y) ]' for each x
-        expectation = {}
-        for lhs in self.lhss():
-            foo = np.zeros(self.dim())
-            for rhsp in self.rhss(lhs):
-                featvec = self.featvec(lhs,rhsp)
-                foo += probtable[lhs][rhsp] * featvec
-            expectation[lhs] = foo
-
-        # Now compute the overall result by cycling through the training data.
-        # Our 'freq' does not show up in Collins' equations: it's the number of 
-        # times this particular (lhs,rhs) pair shows up in Collins' i-indexed training set.
+        # For each possible x/lhs, we first compute the expectation component 
+        # (which does not depend on the observed values of y/rhs), and then we 
+        # calculate the contribution of each training item. Our 'freq' does not 
+        # appear in Collins' equation; it's the number of times this particular 
+        # (x,y) pair shows up in Collins' i-indexed training set.
         result = np.zeros(self.dim())
         for (lhs,d) in td.items():
+            expectation = np.zeros(self.dim())
+            for rhsp in self.rhss(lhs):
+                expectation += probtable[lhs][rhsp] * self.featvec(lhs,rhsp)
             for (rhs,freq) in d.items():
-                result += freq * (self.featvec(lhs,rhs) - expectation[lhs])
+                result += freq * (self.featvec(lhs,rhs) - expectation)
 
         assert isinstance(result, np.ndarray) and result.ndim == 1
         return np.longdouble(result)
