@@ -79,7 +79,7 @@ def report_optimization_progress(stats, outputfn, loglhd, weights, freq):
     if freq is not None and stats.num_iterations % freq == 0:
         distance = None if stats.last_weights is None else np.linalg.norm(weights - stats.last_weights)
         outputfn("    iterations: %d    \tloglhd: %s    \tweights change distance: %s" % (stats.num_iterations, loglhd, distance))
-        stats.last_weights = weights[:]  # Take a copy, because it turns out some methods modify weights in-place
+        stats.last_weights = np.copy(weights)  # Take a copy, because it turns out some methods modify weights in-place
     stats.num_iterations += 1
     return False  # returning True terminates
 
