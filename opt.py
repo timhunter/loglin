@@ -79,7 +79,7 @@ def report_optimization_progress(stats, outputfn, loglhd, weights, freq):
     if freq is not None and stats.num_iterations % freq == 0:
         distance = None if stats.last_weights is None else np.linalg.norm(weights - stats.last_weights)
         outputfn("    iterations: %d    \tloglhd: %s    \tweights change distance: %s" % (stats.num_iterations, loglhd, distance))
-        stats.last_weights = weights
+        stats.last_weights = weights[:]  # Take a copy, because it turns out some methods modify weights in-place
     stats.num_iterations += 1
     return False  # returning True terminates
 
@@ -117,7 +117,7 @@ class LogLinModel():
         if initial is None:
             initial = np.zeros(self.dim())
         if method is None:
-            method = 'BFGS'
+            method = 'L-BFGS-B'
         objective = lambda weights: penalty(regularization_lambda, weights) - self.loglikelihood(td, weights)
         gradient = lambda weights: penaltygrad(regularization_lambda, weights) - self.loglhdgrad(td, weights)
         stats = ProgressStats()
@@ -127,7 +127,10 @@ class LogLinModel():
         outputfn("         Function value:       %f" % res.fun)
         outputfn("         Iterations:           %d" % res.nit)
         outputfn("         Function evaluations: %d" % res.nfev)
-        outputfn("         Gradient evaluations: %d" % res.njev)
+        try:
+            outputfn("         Gradient evaluations: %d" % res.njev)
+        except AttributeError:
+            pass    # some methods, e.g. L-BFGS-B, don't provide njev
         outputfn("         %s" % res.message)
         return res.x
 
@@ -145,7 +148,7 @@ class LogLinModel():
                 ll += sum([ freq * logprob(lhs,rhs) for (rhs,freq) in d.items() ])
         except ProbabilityZeroError:
             ll = np.finfo('float').min  # the smallest number possible
-        return np.longdouble(ll)
+        return ll
 
     # This function corresponds to equation (6) in Mike Collins' notes here:
     #       http://www.cs.columbia.edu/~mcollins/loglinear.pdf
@@ -176,7 +179,7 @@ class LogLinModel():
                 result += freq * (self.featvec(lhs,rhs) - expectation)
 
         assert isinstance(result, np.ndarray) and result.ndim == 1
-        return np.longdouble(result)
+        return result
 
     def report_model(self, weights):
         probtable = self.probs_from_model(weights)
