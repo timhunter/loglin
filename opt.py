@@ -99,6 +99,10 @@ class LogLinModel():
     def featvec_dot(self, x, y, othervec):
         return np.dot(othervec, self.featvec(x,y))
 
+    # Provided as a hook for specialized implementations to override
+    def initial_weights_guess(self, td):
+        return np.zeros(self.dim())
+
     def probs_from_model(self, weights):
         probtable = {}
         for x in self.lhss():
@@ -115,7 +119,8 @@ class LogLinModel():
 
     def train(self, td, regularization_lambda, initial=None, method=None, outputfn=print, progress_report_freq=None):
         if initial is None:
-            initial = np.zeros(self.dim())
+            initial = self.initial_weights_guess(td)
+        outputfn("Initial weight vector is " + ("non-zero" if initial.any() else "zero"))
         if method is None:
             method = 'L-BFGS-B'
         objective = lambda weights: penalty(regularization_lambda, weights) - self.loglikelihood(td, weights)
@@ -220,6 +225,16 @@ class LogLinModelMixed(LogLinModel):
 
     def rhss(self, x):
         return self._ruledict[x]
+
+    # Construct a weight vector where each indicator feature's weight is the log of its frequency in the training data. 
+    # If the model only consists of ``basic'' indicator features, then this should take us straight to the maximum likelihood.
+    def initial_weights_guess(self, td):
+        v = np.zeros(self.dim())
+        for (offset,f,d) in self._indicator_groups:
+            for x in td:
+                for (y,freq) in td[x].items():
+                    v[offset + d[f(x,y)]] += freq
+        return np.ma.log(v).filled(0)  # Take the log of entries in v where valid, fill the rest with 0
 
     # We don't actually memoize a feature vector here, because it's probably huge and sparse. 
     # Instead, we just memoize a sequence of (index,value) pairs representing the non-zero entries in the vector f(lhs,rhs).
