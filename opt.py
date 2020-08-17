@@ -189,75 +189,6 @@ class LogLinModel():
                 print("%12.6f\t%.6f\t%s --> %s" % (self.score(weights,lhs,rhs), probtable[lhs][rhs], lhs, " ".join(rhs)))
         print("######################################")
 
-# Subclass for models with only ``basic'' features, in the sense of Berg-Kirkpatrick et al 2010 p.583, 
-# i.e. indicator features that emulate classical generative models
-class LogLinModelBasic(LogLinModel):
-
-    # Sets up these instance variables:
-    #   self._rulelist: a list of (LHS,RHS) pairs
-    def __init__(self, rulelist):
-        self._rulelist = list(rulelist)
-        self._featvecdict = {}
-        self._indexdict = {}
-
-    def dim(self):
-        return len(self._rulelist)
-
-    def lhss(self):
-        return list(set([lhs for (lhs,rhs) in self._rulelist]))
-
-    def rhss(self, x):
-        return list(set([rhs for (lhs,rhs) in self._rulelist if x == lhs]))
-
-    def find_index(self, lhs, rhs):
-        try:
-            return self._indexdict[(lhs,rhs)]
-        except KeyError:
-            index = self._rulelist.index((lhs,rhs))
-            self._indexdict[(lhs,rhs)] = index
-            return index
-
-    def featvec(self, lhs, rhs):
-        try:
-            return self._featvecdict[(lhs,rhs)]
-        except KeyError:
-            index = self.find_index(lhs,rhs)
-            v = np.zeros(self.dim())
-            v.put(index,1)
-            self._featvecdict[(lhs,rhs)] = v
-            return v
-
-    def featvec_dot(self, x, y, othervec):
-        index = self.find_index(x,y)
-        return othervec[index]
-
-class LogLinModelWithFunctions(LogLinModel):
-
-    def __init__(self, rulelist, featfuncs):
-        self._featfuncs = featfuncs
-        self._featvecdict = {}
-        self._ruledict = defaultdict(lambda: [])
-        for (x,y) in rulelist:
-            self._ruledict[x].append(y)
-
-    def dim(self):
-        return len(self._featfuncs)
-
-    def lhss(self):
-        return self._ruledict.keys()
-
-    def rhss(self, x):
-        return self._ruledict[x]
-
-    def featvec(self, lhs, rhs):
-        try:
-            return self._featvecdict[(lhs,rhs)]
-        except KeyError:
-            v = [f(lhs,rhs) for f in self._featfuncs]
-            v = np.array(v)
-            self._featvecdict[(lhs,rhs)] = v
-            return v
-
 class LogLinModelMixed(LogLinModel):
 
     # An indicator group is a pair (f,ks) which represents a collection of features [(lambda (x,y): 1 if f(x,y) == k else 0) for k in ks]
@@ -314,6 +245,17 @@ class LogLinModelMixed(LogLinModel):
             total += othervec[offset + d[f(x,y)]]
         return total
 
+class LogLinModelWithFunctions(LogLinModelMixed):
+    def __init__(self, rulelist, featfuncs):
+        super().__init__(rulelist, featfuncs, [])
+
+# Subclass for models with only ``basic'' features, in the sense of Berg-Kirkpatrick et al 2010 p.583, 
+# i.e. indicator features that emulate classical generative models
+class LogLinModelBasic(LogLinModelMixed):
+    def __init__(self, xypairs):
+        indicator_group = ((lambda x,y: (x,y)), xypairs)
+        super().__init__(xypairs, [], [indicator_group])
+
 ######################################################################################
 ### Regularization/priors; providing L2 regularization as the only option for now
 
@@ -351,9 +293,6 @@ def run(filename, regularization_lambda):
 
     ### Standard basic model for the ``naive parametrization'', with an indicator for each (lhs,rhs) pair
     #m = LogLinModelBasic(xypairs)
-
-    ### Using the generic class with feature functions to implement the ``naive parametrization''
-    #m = LogLinModelWithFunctions(xypairs, list(map((lambda pair: lambda x,y: 1 if (x,y) == pair else 0), xypairs)))
 
     ## Using the generic class with feature functions to implement the model based on feature vectors from the input file
     featfuncs = list(map((lambda i: lambda x,y: ruletbl[x][y][i]), range(numfeats)))
