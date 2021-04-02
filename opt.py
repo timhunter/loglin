@@ -197,9 +197,15 @@ class LogLinModel():
 class LogLinModelMixed(LogLinModel):
 
     # An indicator group is a pair (f,ks) which represents a collection of features [(lambda (x,y): 1 if f(x,y) == k else 0) for k in ks]
-    def __init__(self, rulelist, featfuncs, indicator_groups):
+    def __init__(self, rulelist, featfuncs, indicator_groups, featfunc_initial_weights=None):
         self._featfuncs = featfuncs
         self._featvecdict = {}
+
+        if featfunc_initial_weights is None:
+            self._featfunc_initial_weights = [None for x in featfuncs]
+        else:
+            assert len(featfunc_initial_weights) == len(featfuncs)
+            self._featfunc_initial_weights = featfunc_initial_weights
 
         self._ruledict = defaultdict(lambda: [])
         for (x,y) in rulelist:
@@ -228,13 +234,20 @@ class LogLinModelMixed(LogLinModel):
 
     # Construct a weight vector where each indicator feature's weight is the log of its frequency in the training data. 
     # If the model only consists of ``basic'' indicator features, then this should take us straight to the maximum likelihood.
+    # Also use featfunc_initial_weights, if they were provided, for the separate feature functions.
     def initial_weights_guess(self, td):
-        v = np.zeros(self.dim())
+        # First set up a vector where we'll accumulate frequencies
+        freq_vec = np.zeros(self.dim())
         for (offset,f,d) in self._indicator_groups:
             for x in td:
                 for (y,freq) in td[x].items():
-                    v[offset + d[f(x,y)]] += freq
-        return np.ma.log(v).filled(0)  # Take the log of entries in v where valid, fill the rest with 0
+                    freq_vec[offset + d[f(x,y)]] += freq
+        # Take the log of those frequencies to get sensible initial weights (and fill with 0 where log is not valid)
+        weight_vec = np.ma.log(freq_vec).filled(0)
+        for (i,w) in enumerate(self._featfunc_initial_weights):
+            if w is not None:
+                weight_vec[i] = w
+        return weight_vec
 
     # We don't actually memoize a feature vector here, because it's probably huge and sparse. 
     # Instead, we just memoize a sequence of (index,value) pairs representing the non-zero entries in the vector f(lhs,rhs).
@@ -261,8 +274,8 @@ class LogLinModelMixed(LogLinModel):
         return total
 
 class LogLinModelWithFunctions(LogLinModelMixed):
-    def __init__(self, rulelist, featfuncs):
-        super().__init__(rulelist, featfuncs, [])
+    def __init__(self, rulelist, featfuncs, featfunc_initial_weights=None):
+        super().__init__(rulelist, featfuncs, [], featfunc_initial_weights)
 
 # Subclass for models with only ``basic'' features, in the sense of Berg-Kirkpatrick et al 2010 p.583, 
 # i.e. indicator features that emulate classical generative models
