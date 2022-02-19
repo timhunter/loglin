@@ -73,14 +73,18 @@ def extract_training_data(inp):
 class ProgressStats:
     def __init__(self):
         self.num_iterations = 0
-        self.last_weights = None
+        self.last_objfnval = None
 
-def report_optimization_progress(stats, outputfn, loglhd, weights, freq):
-    if freq is not None and stats.num_iterations % freq == 0:
-        distance = None if stats.last_weights is None else np.linalg.norm(weights - stats.last_weights)
-        outputfn("    iterations: %d    \tloglhd: %s    \tweights change distance: %s" % (stats.num_iterations, loglhd, distance))
-        stats.last_weights = np.copy(weights)  # Take a copy, because it turns out some methods modify weights in-place
-    stats.num_iterations += 1
+def report_optimization_progress(stats, outputfn, objfnval, weights, freq):
+    if freq is not None:
+        if stats.last_objfnval is None:
+            ftol_check = None
+        else:
+            ftol_check = (stats.last_objfnval - objfnval) / max([abs(stats.last_objfnval), abs(objfnval), 1])
+        if stats.num_iterations % freq == 0:
+            outputfn("    iteration: %d    \tfn value: %s    \tftol check: %s" % (stats.num_iterations, objfnval, ftol_check))
+        stats.last_objfnval = objfnval
+        stats.num_iterations += 1
     return False  # returning True terminates
 
 ######################################################################################
@@ -126,7 +130,7 @@ class LogLinModel():
         objective = lambda weights: penalty(regularization_lambda, weights) - self.loglikelihood(td, weights)
         gradient = lambda weights: penaltygrad(regularization_lambda, weights) - self.loglhdgrad(td, weights)
         stats = ProgressStats()
-        callback = lambda w: report_optimization_progress(stats, outputfn, self.loglikelihood(td,w), w, progress_report_freq)
+        callback = lambda w: report_optimization_progress(stats, outputfn, objective(w), w, progress_report_freq)
         res = scipy.optimize.minimize(objective, initial, jac=gradient, method=method, callback=callback)
         outputfn("Optimization results:")
         outputfn("         Function value:       %f" % res.fun)
