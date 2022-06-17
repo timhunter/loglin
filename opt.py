@@ -131,7 +131,7 @@ class LogLinModel():
         gradient = lambda weights: penaltygrad(regularization_lambda, weights) - self.loglhdgrad(td, weights)
         stats = ProgressStats()
         callback = lambda w: report_optimization_progress(stats, outputfn, objective(w), w, progress_report_freq)
-        res = scipy.optimize.minimize(objective, initial, jac=gradient, method=method, callback=callback)
+        res = scipy.optimize.minimize(objective, initial, jac=gradient, method=method, callback=callback, bounds=self.weight_bounds())
         outputfn("Optimization results:")
         outputfn("         Function value:       %f" % res.fun)
         outputfn("         Iterations:           %d" % res.nit)
@@ -201,7 +201,7 @@ class LogLinModel():
 class LogLinModelMixed(LogLinModel):
 
     # An indicator group is a pair (f,ks) which represents a collection of features [(lambda (x,y): 1 if f(x,y) == k else 0) for k in ks]
-    def __init__(self, rulelist, featfuncs, indicator_groups, featfunc_initial_weights=None):
+    def __init__(self, rulelist, featfuncs, indicator_groups, featfunc_initial_weights=None, featfunc_bounds=(None,None)):
         self._featfuncs = featfuncs
         self._featvecdict = {}
 
@@ -227,8 +227,17 @@ class LogLinModelMixed(LogLinModel):
             offset += len(ks)
         self._dim = offset
 
+        # No bounds for weights of indicator features; weights of function features provided by caller
+        (minw,maxw) = featfunc_bounds
+        if minw is None: minw = -np.inf
+        if maxw is None: maxw = np.inf
+        self._weight_bounds = ([(minw,maxw)] * len(featfuncs)) + ([(-np.inf,np.inf)] * sum(len(ks) for (f,ks) in indicator_groups))
+
     def dim(self):
         return self._dim
+
+    def weight_bounds(self):
+        return self._weight_bounds
 
     def lhss(self):
         return self._ruledict.keys()
