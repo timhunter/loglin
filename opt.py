@@ -248,6 +248,7 @@ class LogLinModelMixed(LogLinModel):
         if minw is None: minw = -np.inf
         if maxw is None: maxw = np.inf
         self._weight_bounds = ([(minw,maxw)] * len(featfuncs)) + ([(-np.inf,np.inf)] * sum(len(ks) for (f,ks) in indicator_groups))
+        assert len(self._weight_bounds) == self._dim
 
     def dim(self):
         return self._dim
@@ -394,8 +395,9 @@ def run(filename, regularization_lambda):
     weights = m.train(td, regularization_lambda)
     print("Found optimal parameter values:", weights)
     llhd = m.loglikelihood(td, weights)
-    penalty_term = penalty(regularization_lambda, weights)
-    print("At this point:  penalty - log-likelihood  =  %f - %f  =  %f" % (penalty_term, llhd, penalty_term - llhd))
+    if regularization_lambda != 0:
+        penalty_term = penalty(regularization_lambda, weights)
+        print("At this point:  penalty - log-likelihood  =  %f - %f  =  %f" % (penalty_term, llhd, penalty_term - llhd))
 
     # Print out the rules with their optimized probabilities
     m.report_model(weights)
