@@ -5,6 +5,7 @@ from __future__ import print_function   # To allow use of python3-style 'print' 
 import sys
 import argparse
 import re
+from tabulate import tabulate
 from collections import defaultdict
 import numpy as np
 import scipy.optimize
@@ -200,8 +201,11 @@ class LogLinModel():
 
 class LogLinModelMixed(LogLinModel):
 
-    # An indicator group is a pair (f,ks) which represents a collection of features [(lambda (x,y): 1 if f(x,y) == k else 0) for k in ks]
-    def __init__(self, rulelist, featfuncs, indicator_groups, featfunc_initial_weights=None, featfunc_bounds=(None,None)):
+    # A featfunc is a function that maps an (x,y) pair to some real number.
+    # An indicator group is a pair (f,ks) which represents a collection of features [(lambda (x,y): 1 if f(x,y) == k else 0) for k in ks].
+    # An indicator_show_fn is a function that maps an element of one of the lists ks to a string, for display purposes.
+    # A featfunc_label is just a string, for display purposes.
+    def __init__(self, rulelist, featfuncs, indicator_groups, featfunc_initial_weights=None, indicator_show_fns=None, featfunc_labels=None, featfunc_bounds=(None,None)):
         self._featfuncs = featfuncs
         self._featvecdict = {}
 
@@ -210,6 +214,12 @@ class LogLinModelMixed(LogLinModel):
         else:
             assert len(featfunc_initial_weights) == len(featfuncs)
             self._featfunc_initial_weights = featfunc_initial_weights
+
+        if featfunc_labels is None:
+            self._featfunc_labels = ["f%03d" % i for (i,_) in enumerate(featfuncs)]
+        else:
+            assert len(featfunc_labels) == len(featfuncs)
+            self._featfunc_labels = featfunc_labels
 
         self._ruledict = defaultdict(lambda: [])
         for (x,y) in rulelist:
@@ -226,6 +236,12 @@ class LogLinModelMixed(LogLinModel):
             self._indicator_groups.append((offset,f,d))
             offset += len(ks)
         self._dim = offset
+
+        if indicator_show_fns is None:
+            self._indicator_show_fns = [str for _ in self._indicator_groups]
+        else:
+            assert len(indicator_show_fns) == len(indicator_groups)
+            self._indicator_show_fns = indicator_show_fns
 
         # No bounds for weights of indicator features; weights of function features provided by caller
         (minw,maxw) = featfunc_bounds
@@ -285,6 +301,37 @@ class LogLinModelMixed(LogLinModel):
         for (offset,f,d) in self._indicator_groups:
             total += othervec[offset + d[f(x,y)]]
         return total
+
+    # Override the generic bare-bones version of this function
+    def report_model(self, weights, show_indicators=True):
+
+        # First the weights for the feature functions
+        if len(self._featfuncs) > 0:
+            print("\nFeature function weights:")
+            for (i,l) in enumerate(self._featfunc_labels):
+                print("\t%s\t%10.6f\t%10.6f" % (l, weights[i], np.exp(weights[i])))
+
+        # Now the weights for the indicator groups
+        if len(self._indicator_groups) > 0:
+            print("\nIndicator weights:")
+            for ((offset,f,d),show_fn) in zip(self._indicator_groups, self._indicator_show_fns):
+                for (cls,i) in sorted(d.items(), key=lambda p: show_fn(p[0])):
+                    print("\t%10.6f\t%s" % (weights[offset+i], show_fn(cls)))
+
+        print("\nProbability table:")
+        rows = []
+        probtable = self.probs_from_model(weights)
+        for x in self.lhss():
+            for y in sorted(self.rhss(x), key=hash):
+                row = []
+                row += [("%3.1g" % f(x,y)) for f in self._featfuncs]
+                if show_indicators:
+                    row += [show_fn(f(x,y)) for ((offset,f,d),show_fn) in zip(self._indicator_groups,self._indicator_show_fns)]
+                row += [self.score(weights,x,y), probtable[x][y], x, y]
+                rows.append(row)
+        print(tabulate(rows, tablefmt="tsv"))
+
+        print()
 
 class LogLinModelWithFunctions(LogLinModelMixed):
     def __init__(self, rulelist, featfuncs, featfunc_initial_weights=None):
