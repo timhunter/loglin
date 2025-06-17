@@ -191,13 +191,13 @@ class LogLinModel():
         assert isinstance(result, np.ndarray) and result.ndim == 1
         return result
 
-    def report_model(self, weights):
+    def report_model(self, weights, outputfn=print):
         probtable = self.probs_from_model(weights)
-        print("######################################")
+        outputfn("######################################")
         for lhs in self.lhss():
             for rhs in sorted(self.rhss(lhs)):
-                print("%12.6f\t%.6f\t%s --> %s" % (self.score(weights,lhs,rhs), probtable[lhs][rhs], lhs, " ".join(rhs)))
-        print("######################################")
+                outputfn("%12.6f\t%.6f\t%s --> %s" % (self.score(weights,lhs,rhs), probtable[lhs][rhs], lhs, " ".join(rhs)))
+        outputfn("######################################")
 
 class LogLinModelMixed(LogLinModel):
 
@@ -304,22 +304,22 @@ class LogLinModelMixed(LogLinModel):
         return total
 
     # Override the generic bare-bones version of this function
-    def report_model(self, weights, show_indicators=True):
+    def report_model(self, weights, outputfn=print, show_indicators=True):
 
         # First the weights for the feature functions
         if len(self._featfuncs) > 0:
-            print("\nFeature function weights:")
+            outputfn("\nFeature function weights:")
             for (i,l) in enumerate(self._featfunc_labels):
-                print("\t%10.6f\t%10.6f\t%s" % (weights[i], np.exp(weights[i]), l))
+                outputfn("\t%10.6f\t%10.6f\t%s" % (weights[i], np.exp(weights[i]), l))
 
         # Now the weights for the indicator groups
         if len(self._indicator_groups) > 0:
-            print("\nIndicator weights:")
+            outputfn("\nIndicator weights:")
             for ((offset,f,d),show_fn) in zip(self._indicator_groups, self._indicator_show_fns):
                 for (cls,i) in sorted(d.items(), key=lambda p: show_fn(p[0])):
-                    print("\t%10.6f\t%10.6f\t%s" % (weights[offset+i], np.exp(weights[offset+i]), show_fn(cls)))
+                    outputfn("\t%10.6f\t%10.6f\t%s" % (weights[offset+i], np.exp(weights[offset+i]), show_fn(cls)))
 
-        print("\nProbability table:")
+        outputfn("\nProbability table:")
         rows = []
         probtable = self.probs_from_model(weights)
         for x in self.lhss():
@@ -330,9 +330,8 @@ class LogLinModelMixed(LogLinModel):
                     row += [show_fn(f(x,y)) for ((offset,f,d),show_fn) in zip(self._indicator_groups,self._indicator_show_fns)]
                 row += [self.score(weights,x,y), probtable[x][y], x, y]
                 rows.append(row)
-        print(tabulate(rows, tablefmt="tsv"))
-
-        print()
+        outputfn(tabulate(rows, tablefmt="tsv"))
+        outputfn("")
 
 class LogLinModelWithFunctions(LogLinModelMixed):
     def __init__(self, rulelist, featfuncs, featfunc_initial_weights=None):
