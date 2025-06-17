@@ -310,14 +310,14 @@ class LogLinModelMixed(LogLinModel):
         if len(self._featfuncs) > 0:
             print("\nFeature function weights:")
             for (i,l) in enumerate(self._featfunc_labels):
-                print("\t%s\t%10.6f\t%10.6f" % (l, weights[i], np.exp(weights[i])))
+                print("\t%10.6f\t%10.6f\t%s" % (weights[i], np.exp(weights[i]), l))
 
         # Now the weights for the indicator groups
         if len(self._indicator_groups) > 0:
             print("\nIndicator weights:")
             for ((offset,f,d),show_fn) in zip(self._indicator_groups, self._indicator_show_fns):
                 for (cls,i) in sorted(d.items(), key=lambda p: show_fn(p[0])):
-                    print("\t%10.6f\t%s" % (weights[offset+i], show_fn(cls)))
+                    print("\t%10.6f\t%10.6f\t%s" % (weights[offset+i], np.exp(weights[offset+i]), show_fn(cls)))
 
         print("\nProbability table:")
         rows = []
@@ -413,5 +413,6 @@ def main(argv):
     print("Done, exiting", file=sys.stderr)
 
 if __name__ == "__main__":
+    np.set_printoptions(linewidth=np.inf)
     main(sys.argv)
 
