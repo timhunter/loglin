@@ -319,20 +319,6 @@ class LogLinModelMixed(LogLinModel):
                 for (cls,i) in sorted(d.items(), key=lambda p: show_fn(p[0])):
                     outputfn("\t%10.6f\t%10.6f\t%s" % (weights[offset+i], np.exp(weights[offset+i]), show_fn(cls)))
 
-        outputfn("\nProbability table:")
-        rows = []
-        probtable = self.probs_from_model(weights)
-        for x in self.lhss():
-            for y in sorted(self.rhss(x), key=hash):
-                row = []
-                row += [("%3.1g" % f(x,y)) for f in self._featfuncs]
-                if show_indicators:
-                    row += [show_fn(f(x,y)) for ((offset,f,d),show_fn) in zip(self._indicator_groups,self._indicator_show_fns)]
-                row += [self.score(weights,x,y), probtable[x][y], x, y]
-                rows.append(row)
-        outputfn(tabulate(rows, tablefmt="tsv"))
-        outputfn("")
-
 class LogLinModelWithFunctions(LogLinModelMixed):
     def __init__(self, rulelist, featfuncs, featfunc_initial_weights=None):
         super().__init__(rulelist, featfuncs, [], featfunc_initial_weights)
