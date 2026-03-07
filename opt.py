@@ -5,7 +5,6 @@ from __future__ import print_function   # To allow use of python3-style 'print' 
 import sys
 import argparse
 import re
-from tabulate import tabulate
 from collections import defaultdict
 import numpy as np
 import scipy.optimize
