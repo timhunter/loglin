@@ -7,6 +7,7 @@ import argparse
 import re
 from collections import defaultdict
 import numpy as np
+import pandas as pd
 import scipy.optimize
 
 ######################################################################################
@@ -305,18 +306,22 @@ class LogLinModelMixed(LogLinModel):
     # Override the generic bare-bones version of this function
     def report_model(self, weights, outputfn=print, show_indicators=True):
 
+        dfs = {}
+
         # First the weights for the feature functions
         if len(self._featfuncs) > 0:
-            outputfn("\nFeature function weights:")
-            for (i,l) in enumerate(self._featfunc_labels):
-                outputfn("\t%10.6f\t%10.6f\t%s" % (weights[i], np.exp(weights[i]), l))
+            rows0 = [(w, np.exp(w)) for w in weights[:len(self._featfuncs)]]
+            dfs["featfunc"] = pd.DataFrame(rows0, index=self._featfunc_labels, columns=["weight", "exp(weight)"])
 
         # Now the weights for the indicator groups
-        if len(self._indicator_groups) > 0:
-            outputfn("\nIndicator weights:")
-            for ((offset,f,d),show_fn) in zip(self._indicator_groups, self._indicator_show_fns):
-                for (cls,i) in sorted(d.items(), key=lambda p: show_fn(p[0])):
-                    outputfn("\t%10.6f\t%10.6f\t%s" % (weights[offset+i], np.exp(weights[offset+i]), show_fn(cls)))
+        indicator_group_index = 0
+        for ((offset,f,d),show_fn) in zip(self._indicator_groups, self._indicator_show_fns):
+            rows_dict = {show_fn(cls) : (weights[offset+i], np.exp(weights[offset+i])) for (cls,i) in d.items()}
+            dfs["indic%02d" % indicator_group_index] = pd.DataFrame.from_dict(rows_dict, orient="index", columns=["weight", "exp(weight)"]).sort_index()
+            indicator_group_index += 1
+
+        df = pd.concat(dfs)
+        outputfn(df.to_csv())
 
 class LogLinModelWithFunctions(LogLinModelMixed):
     def __init__(self, rulelist, featfuncs, featfunc_initial_weights=None):
